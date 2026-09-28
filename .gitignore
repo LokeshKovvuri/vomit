@@ -1,5 +1,11 @@
+@"
 .venv/
+.venv-agent/
 __pycache__/
 *.pyc
 .env
 .DS_Store
+dist/
+build/
+agent/service.env
+"@ | Out-File -Encoding UTF8 .gitignore
