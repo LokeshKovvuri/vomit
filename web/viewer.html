@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8" /><title>vomit — viewer</title>
+<style>
+  body{font-family:system-ui;padding:16px;background:#111;color:#eee}
+  #screen{width:100%;max-width:960px;background:#000;display:block;border-radius:6px;outline:none}
+  input{padding:6px;width:140px;margin-right:8px}
+  button{padding:8px 14px;cursor:pointer}
+  code{color:#0f0}
+</style>
+</head>
+<body>
+  <h2>Viewer (operator)</h2>
+  <div>
+    Session: <input id="sid" placeholder="session id" />
+    <button id="connect">Connect</button>
+    <span id="status"></span>
+  </div>
+  <br>
+  <video id="screen" autoplay playsinline tabindex="0"></video>
+
+<script>
+const urlParams = new URLSearchParams(location.search);
+const fromUrl = urlParams.get('session');
+if (fromUrl) document.getElementById('sid').value = fromUrl;
+
+const video = document.getElementById('screen');
+const statusEl = document.getElementById('status');
+
+let iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+fetch('/config').then(r => r.json()).then(cfg => {
+  if (cfg.iceServers) iceServers = cfg.iceServers;
+}).catch(() => {});
+
+const pc = new RTCPeerConnection({ iceServers });
+let ws, dc;
+
+pc.ontrack = (e) => { video.srcObject = e.streams[0]; statusEl.textContent = 'stream live ✅'; };
+pc.onicecandidate = (e) => {
+  if (e.candidate && ws?.readyState === 1) {
+    ws.send(JSON.stringify({ type: 'ice', payload: e.candidate }));
+  }
+};
+pc.ondatachannel = (e) => { dc = e.channel; };
+
+document.getElementById('connect').onclick = () => {
+  const sessionId = document.getElementById('sid').value.trim();
+  if (!sessionId) return alert('enter session id');
+
+  const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${wsProto}//${location.host}/ws?session=${sessionId}&role=viewer`);
+  ws.onopen = () => statusEl.textContent = 'signaling connected...';
+
+  ws.onmessage = async (ev) => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === 'offer') {
+      await pc.setRemoteDescription(msg.payload);
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      ws.send(JSON.stringify({ type: 'answer', payload: answer }));
+    } else if (msg.type === 'ice') {
+      try { await pc.addIceCandidate(msg.payload); } catch(e){}
+    }
+  };
+};
+
+function send(obj) {
+  if (dc?.readyState === 'open') dc.send(JSON.stringify(obj));
+}
+
+video.addEventListener('mousemove', (e) => {
+  const r = video.getBoundingClientRect();
+  send({ type: 'mousemove',
+         x: (e.clientX - r.left) / r.width,
+         y: (e.clientY - r.top)  / r.height });
+});
+video.addEventListener('mousedown', (e) => send({ type: 'mousedown', button: e.button }));
+video.addEventListener('mouseup',   (e) => send({ type: 'mouseup',   button: e.button }));
+video.addEventListener('wheel',     (e) => { e.preventDefault();
+  send({ type: 'scroll', dx: e.deltaX, dy: e.deltaY }); }, { passive: false });
+video.addEventListener('contextmenu', (e) => e.preventDefault());
+video.addEventListener('keydown', (e) => { e.preventDefault();
+  send({ type: 'keydown', code: e.code, key: e.key }); });
+video.addEventListener('keyup',   (e) => { e.preventDefault();
+  send({ type: 'keyup',   code: e.code, key: e.key }); });
+</script>
+</body>
+</html>

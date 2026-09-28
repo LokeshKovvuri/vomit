@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8" /><title>vomit — browser agent</title>
+<style>
+  body{font-family:system-ui;padding:24px;max-width:760px;margin:auto}
+  video{width:100%;background:#000;border-radius:6px}
+  button{padding:10px 16px;font-size:15px;cursor:pointer}
+  .row{display:flex;gap:10px;align-items:center;margin:8px 0}
+  code{background:#eee;padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+  <h2>Browser Agent (sharing)</h2>
+
+  <div class="row">
+    <span>Session ID: <code id="sid"></code></span>
+    <button id="copy">Copy viewer link</button>
+  </div>
+
+  <div class="row">
+    <button id="start">Start sharing</button>
+    <span id="status">idle</span>
+  </div>
+
+  <video id="preview" autoplay muted playsinline></video>
+
+<script>
+const statusEl = document.getElementById('status');
+const params = new URLSearchParams(location.search);
+const sessionId = params.get('session') || crypto.randomUUID().slice(0, 8);
+document.getElementById('sid').textContent = sessionId;
+document.title = 'vomit agent — ' + sessionId;
+
+let iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+fetch('/config').then(r => r.json()).then(cfg => {
+  if (cfg.iceServers) iceServers = cfg.iceServers;
+}).catch(() => {});
+
+document.getElementById('copy').onclick = async () => {
+  const url = `${location.origin}/viewer.html?session=${sessionId}`;
+  await navigator.clipboard.writeText(url);
+  statusEl.textContent = 'viewer link copied ✅';
+};
+
+const pc = new RTCPeerConnection({ iceServers });
+let ws, dataChannel;
+
+pc.ondatachannel = (e) => {
+  dataChannel = e.channel;
+  dataChannel.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data);
+    statusEl.textContent = 'input received: ' + msg.type;
+    console.log('input event', msg);
+  };
+};
+
+pc.onicecandidate = (e) => {
+  if (e.candidate && ws?.readyState === 1) {
+    ws.send(JSON.stringify({ type: 'ice', payload: e.candidate }));
+  }
+};
+
+document.getElementById('start').onclick = async () => {
+  const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+  document.getElementById('preview').srcObject = stream;
+  stream.getTracks().forEach(t => pc.addTrack(t, stream));
+
+  const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${wsProto}//${location.host}/ws?session=${sessionId}&role=agent`);
+
+  ws.onopen = async () => {
+    statusEl.textContent = 'connected, waiting for viewer...';
+    pc.createDataChannel('input');
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    ws.send(JSON.stringify({ type: 'offer', payload: offer }));
+  };
+
+  ws.onmessage = async (ev) => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === 'answer') {
+      await pc.setRemoteDescription(msg.payload);
+      statusEl.textContent = 'viewer connected ✅';
+    } else if (msg.type === 'ice') {
+      try { await pc.addIceCandidate(msg.payload); } catch(e){}
+    }
+  };
+};
+</script>
+</body>
+</html>
