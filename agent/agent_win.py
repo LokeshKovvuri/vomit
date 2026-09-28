@@ -9,10 +9,10 @@ Remove:
     python agent_win.py stop
     python agent_win.py remove
 
-Configure by editing agent\\service.env (SESSION_ID and SERVER_URL).
+Configure via agent\\service.env (SESSION_ID and SERVER_URL).
 
-Note: the service is visible in services.msc and Task Manager.
-It is not hidden from the operating system.
+Note: this runs as a visible Windows service. It shows up in services.msc
+and in Task Manager as pythonw.exe. It is not hidden from the OS.
 """
 import subprocess
 import sys

@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Dict
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 load_dotenv()
 
@@ -24,6 +24,12 @@ TURN_PASS = os.getenv("TURN_PASS", "")
 WEB_DIR = Path(__file__).parent.parent / "web"
 
 app = FastAPI(title="vomit")
+
+NO_CACHE = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
 
 
 class Hub:
@@ -68,7 +74,10 @@ async def config():
     ice = [{"urls": "stun:stun.l.google.com:19302"}]
     if TURN_URL:
         ice.append({"urls": TURN_URL, "username": TURN_USER, "credential": TURN_PASS})
-    return JSONResponse({"iceServers": ice, "publicUrl": PUBLIC_URL})
+    return JSONResponse(
+        {"iceServers": ice, "publicUrl": PUBLIC_URL},
+        headers=NO_CACHE,
+    )
 
 
 @app.get("/healthz")
@@ -76,19 +85,34 @@ async def healthz():
     return {"ok": True}
 
 
+@app.head("/")
+async def index_head():
+    return Response(status_code=200)
+
+
 @app.get("/")
 async def index():
-    return FileResponse(WEB_DIR / "index.html")
+    return FileResponse(WEB_DIR / "index.html", headers=NO_CACHE)
 
 
 @app.get("/agent.html")
 async def agent_page():
-    return FileResponse(WEB_DIR / "agent.html")
+    return FileResponse(WEB_DIR / "agent.html", headers=NO_CACHE)
 
 
 @app.get("/viewer.html")
 async def viewer_page():
-    return FileResponse(WEB_DIR / "viewer.html")
+    return FileResponse(WEB_DIR / "viewer.html", headers=NO_CACHE)
+
+
+@app.get("/favicon.svg")
+async def favicon():
+    return FileResponse(WEB_DIR / "favicon.svg")
+
+
+@app.get("/favicon.ico")
+async def favicon_ico():
+    return RedirectResponse("/favicon.svg")
 
 
 @app.websocket("/ws")

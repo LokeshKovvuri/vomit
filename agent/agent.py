@@ -4,7 +4,7 @@ vomit native agent — screen share + input injection.
     python agent/agent.py --session myid --server https://your-app.onrender.com
 
 Requires: aiortc, aiohttp, mss, pynput, numpy, av
-Run in a Python 3.12 venv for prebuilt wheels.
+Recommended: Python 3.12 venv for prebuilt wheels.
 """
 import argparse
 import asyncio
@@ -18,7 +18,9 @@ from typing import Optional
 import numpy as np
 import mss
 from av import VideoFrame
-from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack, RTCIceCandidate
+from aiortc import (
+    RTCPeerConnection, RTCSessionDescription, VideoStreamTrack, RTCIceCandidate
+)
 import aiohttp
 from pynput.mouse import Controller as MouseController, Button
 from pynput.keyboard import Controller as KeyboardController, Key
