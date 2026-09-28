@@ -132,10 +132,7 @@ let ws, dataChannel, sharing = false;
 pc.ondatachannel = (e) => {
   dataChannel = e.channel;
   dataChannel.onmessage = (ev) => {
-    try {
-      const msg = JSON.parse(ev.data);
-      console.log('input', msg);
-    } catch {}
+    try { console.log('input', JSON.parse(ev.data)); } catch {}
   };
 };
 

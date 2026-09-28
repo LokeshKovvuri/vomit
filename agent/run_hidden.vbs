@@ -1,5 +1,5 @@
 ' Launch the vomit agent with no visible window.
-' Usage: double-click, or: wscript run_hidden.vbs <session-id> [server-url]
+' Usage: wscript run_hidden.vbs <session-id> [server-url]
 
 Set args = WScript.Arguments
 If args.Count < 1 Then
@@ -15,5 +15,4 @@ Else
 End If
 
 Set sh = CreateObject("WScript.Shell")
-' 0 = hidden window, False = don't wait
-sh.Run "pythonw.exe ""agent\agent.py"" --session " & sessionId & " --server " & serverUrl, 0, False
+sh.Run "pythonw.exe ""agent.py"" --session " & sessionId & " --server " & serverUrl, 0, False

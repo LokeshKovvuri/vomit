@@ -8,7 +8,6 @@ from typing import Dict
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 
@@ -27,7 +26,6 @@ WEB_DIR = Path(__file__).parent.parent / "web"
 app = FastAPI(title="vomit")
 
 
-# ---------- Hub ----------
 class Hub:
     def __init__(self) -> None:
         self.sessions: Dict[str, Dict[str, WebSocket]] = {}
@@ -65,53 +63,41 @@ class Hub:
 hub = Hub()
 
 
-# ---------- Config endpoint ----------
 @app.get("/config")
 async def config():
     ice = [{"urls": "stun:stun.l.google.com:19302"}]
     if TURN_URL:
-        ice.append({
-            "urls": TURN_URL,
-            "username": TURN_USER,
-            "credential": TURN_PASS,
-        })
+        ice.append({"urls": TURN_URL, "username": TURN_USER, "credential": TURN_PASS})
     return JSONResponse({"iceServers": ice, "publicUrl": PUBLIC_URL})
 
 
-# ---------- Health check (Render uses this) ----------
 @app.get("/healthz")
 async def healthz():
     return {"ok": True}
 
 
-# ---------- Static pages ----------
 @app.get("/")
 async def index():
     return FileResponse(WEB_DIR / "index.html")
 
+
 @app.get("/agent.html")
 async def agent_page():
     return FileResponse(WEB_DIR / "agent.html")
+
 
 @app.get("/viewer.html")
 async def viewer_page():
     return FileResponse(WEB_DIR / "viewer.html")
 
 
-# ---------- WebSocket signaling ----------
 @app.websocket("/ws")
-async def ws_endpoint(
-    ws: WebSocket,
-    session: str = Query(...),
-    role: str = Query(...),
-):
+async def ws_endpoint(ws: WebSocket, session: str = Query(...), role: str = Query(...)):
     if role not in ("agent", "viewer"):
         await ws.close(code=1008, reason="invalid role")
         return
-
     await ws.accept()
     await hub.register(session, role, ws)
-
     try:
         while True:
             raw = await ws.receive_text()

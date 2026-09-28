@@ -195,7 +195,6 @@ function send(obj) {
   if (dc?.readyState === 'open') dc.send(JSON.stringify(obj));
 }
 
-// Mouse
 video.addEventListener('mousemove', (e) => {
   const r = video.getBoundingClientRect();
   send({ type: 'mousemove',
@@ -209,8 +208,6 @@ video.addEventListener('wheel', (e) => {
   send({ type: 'scroll', dx: e.deltaX, dy: e.deltaY });
 }, { passive: false });
 video.addEventListener('contextmenu', (e) => e.preventDefault());
-
-// Keyboard
 video.addEventListener('keydown', (e) => {
   e.preventDefault();
   send({ type: 'keydown', code: e.code, key: e.key });

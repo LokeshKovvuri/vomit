@@ -1,12 +1,10 @@
 """
-vomit native agent — real screen capture + real input injection.
+vomit native agent — screen share + input injection.
 
-Run modes:
-    python agent/agent.py --session myid --server http://localhost:8080
+    python agent/agent.py --session myid --server https://your-app.onrender.com
 
-Windows hidden mode (no window, no console):
-    pythonw agent/agent.py --session myid
-    OR: wscript agent/run_hidden.vbs myid
+Requires: aiortc, aiohttp, mss, pynput, numpy, av
+Run in a Python 3.12 venv for prebuilt wheels.
 """
 import argparse
 import asyncio
@@ -14,7 +12,6 @@ import fractions
 import json
 import logging
 import os
-import sys
 import time
 from typing import Optional
 

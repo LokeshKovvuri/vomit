@@ -10,11 +10,3 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.0"
-      - key: PUBLIC_URL
-        sync: false
-      - key: TURN_URL
-        sync: false
-      - key: TURN_USER
-        sync: false
-      - key: TURN_PASS
-        sync: false

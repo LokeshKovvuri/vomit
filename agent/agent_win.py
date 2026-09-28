@@ -1,20 +1,31 @@
 """
-Windows service wrapper for the vomit agent.
-Install:   python agent_win.py install
-Start:     python agent_win.py start
-Stop:      python agent_win.py stop
-Remove:    python agent_win.py remove
+Windows service wrapper — runs the vomit agent in the background.
 
-Reads SESSION_ID and SERVER_URL from agent\service.env
+Install (as Administrator):
+    python agent_win.py install
+    python agent_win.py start
+
+Remove:
+    python agent_win.py stop
+    python agent_win.py remove
+
+Configure by editing agent\\service.env (SESSION_ID and SERVER_URL).
+
+Note: the service is visible in services.msc and Task Manager.
+It is not hidden from the operating system.
 """
-import os
-import sys
 import subprocess
-import servicemanager
-import win32event
-import win32service
-import win32serviceutil
+import sys
 from pathlib import Path
+
+try:
+    import servicemanager
+    import win32event
+    import win32service
+    import win32serviceutil
+except ImportError:
+    print("pywin32 required: pip install pywin32")
+    sys.exit(1)
 
 BASE = Path(__file__).parent.resolve()
 ENV_FILE = BASE / "service.env"
@@ -50,10 +61,10 @@ class VomitAgentService(win32serviceutil.ServiceFramework):
         servicemanager.LogInfoMsg("VomitAgent starting")
         cfg = load_env()
         session = cfg.get("SESSION_ID", "")
-        server = cfg.get("SERVER_URL", "https://your-app.onrender.com")
+        server = cfg.get("SERVER_URL", "")
 
-        if not session:
-            servicemanager.LogErrorMsg("SESSION_ID missing in service.env")
+        if not session or not server:
+            servicemanager.LogErrorMsg("SESSION_ID or SERVER_URL missing in service.env")
             return
 
         pythonw = sys.executable.replace("python.exe", "pythonw.exe")
