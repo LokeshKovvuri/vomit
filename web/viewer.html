@@ -1,31 +1,138 @@
 <!doctype html>
-<html>
-<head><meta charset="utf-8" /><title>vomit — viewer</title>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>vomit — viewer</title>
 <style>
-  body{font-family:system-ui;padding:16px;background:#111;color:#eee}
-  #screen{width:100%;max-width:960px;background:#000;display:block;border-radius:6px;outline:none}
-  input{padding:6px;width:140px;margin-right:8px}
-  button{padding:8px 14px;cursor:pointer}
-  code{color:#0f0}
+  :root{
+    --bg:#0a0a0c; --bg2:#131318; --line:#23232c;
+    --fg:#e9e9ef; --mut:#8b8b96;
+    --accent:#7c5cff; --accent2:#00d4aa; --danger:#ff5566;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--fg);
+       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       display:flex;flex-direction:column;min-height:100vh}
+  header{
+    display:flex;align-items:center;gap:14px;
+    padding:14px 20px;border-bottom:1px solid var(--line);
+    background:var(--bg2);
+  }
+  .logo{font-size:20px;font-weight:800;letter-spacing:-.5px;
+        background:linear-gradient(90deg,var(--accent),var(--accent2));
+        -webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{color:var(--mut);font-size:12px;border:1px solid var(--line);
+       padding:3px 8px;border-radius:20px}
+  .spacer{flex:1}
+  .status{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--mut)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--mut);transition:.2s}
+  .dot.live{background:var(--accent2);box-shadow:0 0 10px var(--accent2)}
+  .dot.wait{background:#ffb020;box-shadow:0 0 10px #ffb020}
+  .dot.err{background:var(--danger);box-shadow:0 0 10px var(--danger)}
+
+  .bar{
+    display:flex;gap:10px;padding:14px 20px;align-items:center;
+    background:var(--bg2);border-bottom:1px solid var(--line);
+  }
+  input{
+    font:inherit;background:#0f0f14;color:var(--fg);
+    border:1px solid var(--line);border-radius:10px;
+    padding:9px 12px;width:200px;outline:none;
+  }
+  input:focus{border-color:var(--accent)}
+  button{
+    font:inherit;cursor:pointer;border:1px solid var(--line);
+    background:#18181f;color:var(--fg);
+    padding:9px 16px;border-radius:10px;transition:.15s;
+  }
+  button:hover{background:#1f1f2a;border-color:var(--accent)}
+  button.primary{background:linear-gradient(135deg,var(--accent),#5a3fd6);
+                 border-color:transparent;font-weight:600}
+  button.primary:hover{filter:brightness(1.1)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+
+  .stage{
+    flex:1;display:grid;place-items:center;
+    padding:24px;background:
+      radial-gradient(800px 400px at 50% 0%, #16162a 0%, transparent 60%),
+      var(--bg);
+    overflow:auto;
+  }
+  .video-wrap{position:relative;max-width:100%}
+  #screen{
+    display:block;max-width:100%;max-height:calc(100vh - 180px);
+    border-radius:12px;border:1px solid var(--line);
+    background:#000;outline:none;
+    box-shadow:0 20px 60px rgba(0,0,0,.6);
+  }
+  #screen:focus{border-color:var(--accent)}
+  .overlay{
+    position:absolute;inset:0;display:grid;place-items:center;
+    background:rgba(0,0,0,.7);border-radius:12px;
+    color:var(--mut);font-size:14px;text-align:center;padding:20px;
+  }
+  .overlay.hidden{display:none}
+  .overlay .big{font-size:40px;margin-bottom:12px}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+         background:#18181f;border:1px solid var(--accent);
+         padding:12px 20px;border-radius:10px;font-size:13px;
+         opacity:0;pointer-events:none;transition:.25s}
+  .toast.show{opacity:1}
 </style>
 </head>
 <body>
-  <h2>Viewer (operator)</h2>
-  <div>
-    Session: <input id="sid" placeholder="session id" />
-    <button id="connect">Connect</button>
-    <span id="status"></span>
+<header>
+  <div class="logo">vomit</div>
+  <div class="tag">viewer</div>
+  <div class="spacer"></div>
+  <div class="status">
+    <span class="dot" id="dot"></span>
+    <span id="status">idle</span>
   </div>
-  <br>
-  <video id="screen" autoplay playsinline tabindex="0"></video>
+</header>
+
+<div class="bar">
+  <input id="sid" placeholder="session id" autocomplete="off" />
+  <button id="connect" class="primary">Connect</button>
+  <button id="fullscreen" title="Fullscreen">⛶</button>
+</div>
+
+<div class="stage">
+  <div class="video-wrap">
+    <video id="screen" autoplay playsinline tabindex="0"></video>
+    <div class="overlay" id="overlay">
+      <div>
+        <div class="big">🎛️</div>
+        <div>Enter a session ID and click Connect to start.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
 
 <script>
-const urlParams = new URLSearchParams(location.search);
-const fromUrl = urlParams.get('session');
-if (fromUrl) document.getElementById('sid').value = fromUrl;
+const $ = (id) => document.getElementById(id);
+const video = $('screen'), statusEl = $('status'), dotEl = $('dot');
+const overlay = $('overlay'), toastEl = $('toast');
 
-const video = document.getElementById('screen');
-const statusEl = document.getElementById('status');
+const params = new URLSearchParams(location.search);
+if (params.get('session')) $('sid').value = params.get('session');
+
+function setStatus(text, kind) {
+  statusEl.textContent = text;
+  dotEl.className = 'dot' + (kind ? ' ' + kind : '');
+}
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toastEl.classList.remove('show'), 1800);
+}
 
 let iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
 fetch('/config').then(r => r.json()).then(cfg => {
@@ -35,22 +142,33 @@ fetch('/config').then(r => r.json()).then(cfg => {
 const pc = new RTCPeerConnection({ iceServers });
 let ws, dc;
 
-pc.ontrack = (e) => { video.srcObject = e.streams[0]; statusEl.textContent = 'stream live ✅'; };
+pc.ontrack = (e) => {
+  video.srcObject = e.streams[0];
+  overlay.classList.add('hidden');
+  setStatus('live', 'live');
+  video.focus();
+};
 pc.onicecandidate = (e) => {
   if (e.candidate && ws?.readyState === 1) {
     ws.send(JSON.stringify({ type: 'ice', payload: e.candidate }));
   }
 };
 pc.ondatachannel = (e) => { dc = e.channel; };
+pc.onconnectionstatechange = () => {
+  if (pc.connectionState === 'connected') setStatus('live', 'live');
+  if (pc.connectionState === 'failed') setStatus('failed', 'err');
+  if (pc.connectionState === 'disconnected') setStatus('disconnected', 'err');
+};
 
-document.getElementById('connect').onclick = () => {
-  const sessionId = document.getElementById('sid').value.trim();
-  if (!sessionId) return alert('enter session id');
+$('connect').onclick = () => {
+  const sessionId = $('sid').value.trim();
+  if (!sessionId) { toast('Enter a session ID'); return; }
+  setStatus('connecting…', 'wait');
+  $('connect').disabled = true;
 
   const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   ws = new WebSocket(`${wsProto}//${location.host}/ws?session=${sessionId}&role=viewer`);
-  ws.onopen = () => statusEl.textContent = 'signaling connected...';
-
+  ws.onopen = () => setStatus('signaling…', 'wait');
   ws.onmessage = async (ev) => {
     const msg = JSON.parse(ev.data);
     if (msg.type === 'offer') {
@@ -59,15 +177,25 @@ document.getElementById('connect').onclick = () => {
       await pc.setLocalDescription(answer);
       ws.send(JSON.stringify({ type: 'answer', payload: answer }));
     } else if (msg.type === 'ice') {
-      try { await pc.addIceCandidate(msg.payload); } catch(e){}
+      try { await pc.addIceCandidate(msg.payload); } catch {}
     }
   };
+  ws.onclose = () => {
+    setStatus('closed', 'err');
+    $('connect').disabled = false;
+  };
+};
+
+$('fullscreen').onclick = () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else video.requestFullscreen?.();
 };
 
 function send(obj) {
   if (dc?.readyState === 'open') dc.send(JSON.stringify(obj));
 }
 
+// Mouse
 video.addEventListener('mousemove', (e) => {
   const r = video.getBoundingClientRect();
   send({ type: 'mousemove',
@@ -76,13 +204,21 @@ video.addEventListener('mousemove', (e) => {
 });
 video.addEventListener('mousedown', (e) => send({ type: 'mousedown', button: e.button }));
 video.addEventListener('mouseup',   (e) => send({ type: 'mouseup',   button: e.button }));
-video.addEventListener('wheel',     (e) => { e.preventDefault();
-  send({ type: 'scroll', dx: e.deltaX, dy: e.deltaY }); }, { passive: false });
+video.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  send({ type: 'scroll', dx: e.deltaX, dy: e.deltaY });
+}, { passive: false });
 video.addEventListener('contextmenu', (e) => e.preventDefault());
-video.addEventListener('keydown', (e) => { e.preventDefault();
-  send({ type: 'keydown', code: e.code, key: e.key }); });
-video.addEventListener('keyup',   (e) => { e.preventDefault();
-  send({ type: 'keyup',   code: e.code, key: e.key }); });
+
+// Keyboard
+video.addEventListener('keydown', (e) => {
+  e.preventDefault();
+  send({ type: 'keydown', code: e.code, key: e.key });
+});
+video.addEventListener('keyup', (e) => {
+  e.preventDefault();
+  send({ type: 'keyup', code: e.code, key: e.key });
+});
 </script>
 </body>
 </html>

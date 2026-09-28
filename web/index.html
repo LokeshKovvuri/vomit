@@ -1,20 +1,85 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>vomit</title>
-  <style>
-    body { font-family: system-ui; max-width: 520px; margin: 80px auto; text-align: center; }
-    a { display: block; margin: 12px 0; padding: 14px; background: #111; color: #fff;
-        text-decoration: none; border-radius: 8px; }
-    small { color: #666; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>vomit — remote desktop</title>
+<style>
+  :root{
+    --bg:#0a0a0c; --bg2:#131318; --line:#23232c;
+    --fg:#e9e9ef; --mut:#8b8b96;
+    --accent:#7c5cff; --accent2:#00d4aa;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #1a1a2e 0%, transparent 60%),
+      var(--bg);
+    color:var(--fg);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    display:flex;align-items:center;justify-content:center;
+    min-height:100vh;padding:24px;
+  }
+  .card{
+    width:100%;max-width:480px;
+    background:var(--bg2);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:36px 32px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  .logo{
+    font-size:34px;font-weight:800;letter-spacing:-1px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    margin-bottom:6px;
+  }
+  .sub{color:var(--mut);font-size:13px;margin-bottom:28px}
+  .opt{
+    display:flex;align-items:center;gap:14px;
+    padding:16px 18px;margin-bottom:12px;
+    background:#18181f;border:1px solid var(--line);
+    border-radius:12px;text-decoration:none;color:var(--fg);
+    transition:.15s ease;
+  }
+  .opt:hover{
+    border-color:var(--accent);
+    background:#1c1c26;
+    transform:translateY(-1px);
+  }
+  .opt .ico{
+    width:40px;height:40px;flex:0 0 40px;
+    border-radius:10px;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    font-size:20px;
+  }
+  .opt b{display:block;font-size:15px}
+  .opt span{display:block;color:var(--mut);font-size:12.5px;margin-top:2px}
+  .foot{margin-top:24px;padding-top:20px;border-top:1px solid var(--line);
+        color:var(--mut);font-size:12px;text-align:center}
+  code{background:#0f0f14;padding:2px 6px;border-radius:6px;color:var(--accent2);font-size:12px}
+</style>
 </head>
 <body>
-  <h1>vomit</h1>
-  <p>Pick a role:</p>
-  <a href="/agent.html">Share my screen (Browser Agent)</a>
-  <a href="/viewer.html">View &amp; control (Operator)</a>
-  <p><small>Native agent: <code>python agent/agent.py --session &lt;id&gt;</code></small></p>
+  <div class="card">
+    <div class="logo">vomit</div>
+    <div class="sub">Self-hosted remote desktop — share, view, control.</div>
+
+    <a class="opt" href="/agent.html">
+      <div class="ico">🖥️</div>
+      <div><b>Share my screen</b><span>Start a session as the agent</span></div>
+    </a>
+
+    <a class="opt" href="/viewer.html">
+      <div class="ico">🎛️</div>
+      <div><b>View &amp; control</b><span>Join a session as the operator</span></div>
+    </a>
+
+    <div class="foot">
+      Native agent: <code>python agent/agent.py --session &lt;id&gt;</code>
+    </div>
+  </div>
 </body>
 </html>
